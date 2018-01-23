@@ -1,9 +1,9 @@
 # sabrMC
 Unbiased SABR model simulation in the manner of Bin Chen, Cornelis W. Oosterlee and Hans van der Weide (2011).
 
-The Sigma Alpha Beta Rho model first designed by Hagan & al. is a very popular model use extensively by practitioners
-for interest rates derivatives. In this framework, volatility is stochastic, following a geometric brownian motion
-with no drift, whereas the forward rate dynamics are modeled with a CEV process.However, despite the simplicity of its formulation, 
+The Sigma Alpha Beta Rho model (SABR) first designed by Hagan & al. is very popular and used extensively by practitioners
+for interest rates derivatives. In this framework, volatility is stochastic following a geometric brownian motion
+with no drift, whereas the forward rate dynamics are modeled with a CEV process. However, despite the simplicity of its formulation, 
 it does not allow for closed form analytical solutions. 
 
 Moreover as pointed by early authors Andersen (1995) and Andersen & Andreasen (2000) Euler-Maruyama and Milstein discretization scheme 
