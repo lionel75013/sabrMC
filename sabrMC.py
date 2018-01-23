@@ -188,17 +188,17 @@ def sabrMC(F0=0.04, sigma0=0.07, alpha=0.5, beta=0.25, rho=0.4, psi_threshold=2.
     Ft = np.zeros((T, N))
     Ft = np.insert(Ft, 0, F0 * np.ones(N), axis=0)
     
-    
+    # absorption probabilities Formula 2.10
     sigma2_t = np.power(sigma_t, 2) * t  # sigma**2 * delta
+    vfunc_absorption_probability = np.vectorize(lambda x: AbsorptionConditionalProb(F0, beta, x))
+    pr_zero = vfunc_absorption_probability(sigma2_t)
     
     for n in range(0, N):
         for ti in range(1, T + 1):
             if Ft[ti - 1, n] == 0.:
                 Ft[ti, n] = 0.
                 continue
-            # absorption probabilities Formula 2.10
-            pr_zero = AbsorptionConditionalProb(Ft[ti - 1 , n], beta, sigma2_t[ti, n])
-            if pr_zero > U[ti - 1, n]:
+            elif pr_zero[ti, n] > U[ti - 1, n]:
                 Ft[ti, n] = 0.
                 continue
             
