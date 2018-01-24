@@ -204,13 +204,13 @@ def sabrMC(F0=0.04, sigma0=0.07, alpha=0.5, beta=0.25, rho=0.4, psi_threshold=2.
             m, psi = andersen_QE(a[ti, n], b)
 
             if m >= 0 and psi <= psi_threshold:
-                # Formula 3.9: simulation for small values
+                # Formula 3.9: simulation for high values
                 e2 = (2. / psi) - 1. + sqrt(2. / psi) * sqrt((2. / psi) - 1.)
                 d = m / (1. + e2)
                 Ft[ti, n] = np.power(((1. - beta) ** 2) * v_t[ti, n] * d * ((sqrt(e2) + Z[ti - 1, n]) ** 2), 1. / (2.* (1. - beta))) 
                 
             elif psi > psi_threshold or (m < 0 and psi <= psi_threshold):
-                # direct inversion
+                # direct inversion for low values
                 c_star = root_chi2(a[ti, n], b, U[ti - 1, n])
                 Ft[ti, n] = np.power(c_star * ((1. - beta) ** 2) * v_t[ti, n], 1. / (2. - 2. * beta))
 
