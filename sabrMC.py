@@ -178,7 +178,7 @@ def sabrMC(F0=0.04, sigma0=0.07, alpha=0.5, beta=0.25, rho=0.4, psi_threshold=2.
     sigma_t = simulate_sigma(W2t, sigma0, alpha, t, dt, T, N)
     
     # integrated variance
-    v_t = integrated_variance_small_disturbances(N, rho, alpha, sigma0, t, dW2, U1)
+    v_t = integrated_variance_small_disturbances(N, rho, alpha, sigma_t, dt, dW2, U1)
   
     # Direct inversion scheme
     a = (1. / v_t) * (np.power(F0, 1. - beta) / (1. - beta) + (rho / alpha) * (sigma_t - sigma0)) ** 2
