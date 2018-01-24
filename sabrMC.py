@@ -97,7 +97,7 @@ def integrated_variance_small_disturbances(N, rho, alpha, sigma0, t, dW2, U):
     dW = np.insert(dW2, 0, np.zeros(N), axis=0)
     # formula (3.18)
     dW_2, dW_3, dW_4 = np.power(dW, 2), np.power(dW, 3), np.power(dW, 4)
-    m = 1
+    m = 1.
     m += alpha * dW
     m += (1. / 3) * (alpha ** 2) * (2 * dW_2 - t / 2)
     m += (1. / 3) * (alpha ** 3) * (dW_3 - dW * t) 
@@ -114,7 +114,7 @@ def integrated_variance_small_disturbances(N, rho, alpha, sigma0, t, dW2, U):
 
 def andersen_QE(ai, b):
     ''' Test for Andersen L. (2008) Quadratic exponential Scheme (Q.E.) '''
-    k = 2 - b
+    k = 2. - b
     lbda = ai
     s2 = (2 * (k + 2 * lbda))
     m = k + lbda
@@ -134,7 +134,7 @@ def sabrMC(F0=0.04, sigma0=0.07, alpha=0.5, beta=0.25, rho=0.4, psi_threshold=2.
 
        alpha: Vol-vol parameter of SABR
              
-       beta: Beta parameter of SABR (0<beta<1)
+       beta: Beta parameter of SABR
        
        rho: Stochastic process correlation 
        
@@ -205,9 +205,9 @@ def sabrMC(F0=0.04, sigma0=0.07, alpha=0.5, beta=0.25, rho=0.4, psi_threshold=2.
 
             if m >= 0 and psi <= psi_threshold:
                 # Formula 3.9: simulation for small values
-                e2 = (2. / psi) - 1. + sqrt(.2 / psi) * sqrt((2. / psi) - 1.)
-                d = m / (1 + e2)
-                Ft[ti, n] = np.power(((1. - beta) ** 2) * v_t[ti, n] * d * (sqrt(e2) + Z[ti - 1, n]) ** 2, 1. / (2. - 2. * beta)) 
+                e2 = (2. / psi) - 1. + sqrt(2. / psi) * sqrt((2. / psi) - 1.)
+                d = m / (1. + e2)
+                Ft[ti, n] = np.power(((1. - beta) ** 2) * v_t[ti, n] * d * ((sqrt(e2) + Z[ti - 1, n]) ** 2), 1. / (2.* (1. - beta))) 
                 
             elif psi > psi_threshold or (m < 0 and psi <= psi_threshold):
                 # direct inversion
