@@ -101,7 +101,7 @@ def integrated_variance_small_disturbances(N, rho, alpha, sigma0, t, dW2, U):
     m += alpha * dW
     m += (1. / 3) * (alpha ** 2) * (2 * dW_2 - t / 2)
     m += (1. / 3) * (alpha ** 3) * (dW_3 - dW * t) 
-    m += (1. / 5) * (alpha ** 4) * ((2. / 3) * dW_4 - (3. / 2) * dW_2 * t + 2 * t ** 2)
+    m += (1. / 5) * (alpha ** 4) * ((2. / 3) * dW_4 - (3. / 2) * dW_2 * t + 2 * np.power(t, 2))
     m = (sigma0 ** 2) * t * m
     
     v = (1. / 3) * (sigma0 ** 4) * (alpha ** 2) * np.power(t, 3)
@@ -114,7 +114,7 @@ def integrated_variance_small_disturbances(N, rho, alpha, sigma0, t, dW2, U):
 
 def andersen_QE(ai, b):
     ''' Test for Andersen L. (2008) Quadratic exponential Scheme (Q.E.) '''
-    k = b - 2
+    k = 2 - b
     lbda = ai
     s2 = (2 * (k + 2 * lbda))
     m = k + lbda
@@ -134,7 +134,7 @@ def sabrMC(F0=0.04, sigma0=0.07, alpha=0.5, beta=0.25, rho=0.4, psi_threshold=2.
 
        alpha: Vol-vol parameter of SABR
              
-       beta: Beta parameter of SABR 0<beta<1 (0 and 1 are forbidden and will not provide accurate results)
+       beta: Beta parameter of SABR
        
        rho: Stochastic process correlation 
        
@@ -189,9 +189,8 @@ def sabrMC(F0=0.04, sigma0=0.07, alpha=0.5, beta=0.25, rho=0.4, psi_threshold=2.
     Ft = np.insert(Ft, 0, F0 * np.ones(N), axis=0)
     
     # absorption probabilities Formula 2.10
-    sigma2_t = np.power(sigma_t, 2) * t  # sigma**2 * delta
     vfunc_absorption_probability = np.vectorize(lambda x: AbsorptionConditionalProb(F0, beta, x))
-    pr_zero = vfunc_absorption_probability(sigma2_t)
+    pr_zero = vfunc_absorption_probability(v_t)
     
     for n in range(0, N):
         for ti in range(1, T + 1):
@@ -215,7 +214,7 @@ def sabrMC(F0=0.04, sigma0=0.07, alpha=0.5, beta=0.25, rho=0.4, psi_threshold=2.
                 c_star = root_chi2(a[ti, n], b, U[ti - 1, n])
                 Ft[ti, n] = np.power(c_star * ((1. - beta) ** 2) * v_t[ti, n], 1. / (2. - 2. * beta))
 
-            print Ft[ti, n]
+            #print Ft[ti, n]
         
     return Ft
 
