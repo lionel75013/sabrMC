@@ -134,7 +134,7 @@ def sabrMC(F0=0.04, sigma0=0.07, alpha=0.5, beta=0.25, rho=0.4, psi_threshold=2.
 
        alpha: Vol-vol parameter of SABR
              
-       beta: Beta parameter of SABR
+       beta: Beta parameter of SABR (0<beta<1)
        
        rho: Stochastic process correlation 
        
