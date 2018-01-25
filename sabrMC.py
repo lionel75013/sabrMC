@@ -8,7 +8,7 @@ from scipy.stats import ncx2
 
 r"""Unbiased SABR model simulation in the manner of Bin Chen, Cornelis W. Oosterlee and Hans van der Weide (2011).
 
-The Sigma Alpha Beta Rho model first designed by Hagan & al. is a very popular model use extensively by practitioners
+The Stochastic Alpha Beta Rho model first designed by Hagan & al. is a very popular model use extensively by practitioners
 for interest rates derivatives. In this framework, volatility is stochastic, following a geometric brownian motion
 with no drift, whereas the forward rate dynamics are modeled with a CEV process.However, despite the simplicity of its formulation, 
 it does not allow for closed form analytical solutions. 
@@ -47,15 +47,6 @@ __status__ = 'beta'
 __version__ = '0.1.0'
 
 
-
-######################## helper functions #######################################
-def af(F0, beta, nu_theta):
-    return (F0 ** (2 * (1 - beta))) / (2 * ((1 - beta) ** 2) * nu_theta)
-
-def bf(beta):
-    return 1. / 2 * (1. - beta)
-
-
 ######################## direct inversion ######################################
 def root_chi2(a, b, u):
     ''' inversion of the non central chi-square distribution '''
@@ -69,42 +60,36 @@ def equation(c, a, b, u):
 
 ######################## Absorption probability #################################
 
-def AbsorptionConditionalProb(F0, beta, nu_theta):
+def AbsorptionConditionalProb(a, b):
     ''' probability that F_ti+1 is absorbed by the 0 barrier conditional on inital value S0  '''
-    cprob = 1. - gammainc(bf(beta), af(F0, beta, nu_theta))  # formula (2.10), scipy gammainc is already normalized by gamma(b) 
+    cprob = 1. - gammainc(b / 2, a / 2)  # formula (2.10), scipy gammainc is already normalized by gamma(b) 
     return cprob
 
 ######################## volatility GBM simulation ##############################
 
-def simulate_Wt(dW, x0, n, dt, m):
+def simulate_Wt(dW, T, N):
     ''' Simulates brownian paths. Vectorization inspired by Scipy cookbook ''' 
-    x0 = np.asarray(x0)
-    Wt = np.empty((n + 1, m))
-    Wt[0] = x0
-    np.cumsum(dW, axis=0, out=dW)
-    dW += x0
-    Wt[1:, :] = dW
+    Wt = np.empty((T, N))
+    np.cumsum(dW, axis=0, out=Wt)
     return Wt
 
 def simulate_sigma(Wt, sigma0, alpha , t):
     ''' 'Exact' simulation of GBM with mu=0 '''
-    return sigma0 * np.exp(alpha * Wt - 0.5 * (alpha ** 2) * t)
+    return sigma0 * np.exp(alpha * Wt - 0.5 * (alpha ** 2) * t[1:])
 
 ######################## integrated variance ####################################
-def integrated_variance_small_disturbances(N, rho, alpha, sigma0, dt, dW2, U):
+def integrated_variance_small_disturbances(N, rho, alpha, sigmat, dt, dW, U):
     ''' Small disturbance expansion Chen B. & al (2011).'''
-    # add 0 first row
-    dW = np.insert(dW2, 0, np.zeros(N), axis=0)
     # formula (3.18)
     dW_2, dW_3, dW_4 = np.power(dW, 2), np.power(dW, 3), np.power(dW, 4)
-    m = 1.
-    m += alpha * dW
-    m += (1. / 3) * (alpha ** 2) * (2 * dW_2 - dt / 2)
-    m += (1. / 3) * (alpha ** 3) * (dW_3 - dW * dt) 
-    m += (1. / 5) * (alpha ** 4) * ((2. / 3) * dW_4 - (3. / 2) * dW_2 * dt + 2 * np.power(dt, 2))
-    m = (sigma0 ** 2) * dt * m
     
-    v = (1. / 3) * (sigma0 ** 4) * (alpha ** 2) * np.power(dt, 3)
+    m1 = alpha * dW
+    m2 = (1. / 3) * (alpha ** 2) * (2 * dW_2 - dt / 2)
+    m3 = (1. / 3) * (alpha ** 3) * (dW_3 - dW * dt) 
+    m4 = (1. / 5) * (alpha ** 4) * ((2. / 3) * dW_4 - (3. / 2) * dW_2 * dt + 2 * np.power(dt, 2))
+    m = (sigmat ** 2) * dt * (1. + m1 + m2 + m3 + m4)
+    
+    v = (1. / 3) * (sigmat ** 4) * (alpha ** 2) * np.power(dt, 3)
     # step 3 & 4 of 3.6 discretization scheme
     mu = np.log(m) - (1. / 2) * np.log(1. + v / m ** 2)
     sigma2 = np.log(1. + v / (m ** 2))
@@ -191,43 +176,42 @@ def sabrMC(F0=0.04, sigma0=0.07, alpha=0.5, beta=0.25, rho=0.4, psi_threshold=2.
     
     # Distributions samples
     dW2 = np.random.normal(0.0, math.sqrt(dt), (T, N))
-    U1 = np.random.uniform(size=(T + 1, N))
+    U1 = np.random.uniform(size=(T, N))
     U = np.random.uniform(size=(T, N))
     Z = np.random.normal(0.0, 1., (T, N))
-    W2t = simulate_Wt(dW2, np.zeros(N), T, dt, N)
+    W2t = simulate_Wt(dW2, T, N)
     
     # vol process
     sigma_t = simulate_sigma(W2t, sigma0, alpha, t)
-    sigma_tp1 = shift(sigma_t, -1, fill_value=0.)
     
     # integrated variance
     if trapezoidal_integrated_variance:
         v_t = integrated_variance_trapezoidal(rho, sigma_t, dt)
     else:
         v_t = integrated_variance_small_disturbances(N, rho, alpha, sigma_t, dt, dW2, U1)
-  
-    # Direct inversion scheme
-    a = (1. / v_t) * (((np.power(F0, 1. - beta) / (1. - beta)) + (rho / alpha) * (sigma_tp1 - sigma_t)) ** 2)
+        
     b = 2. - ((1. - 2. * beta - (1. - beta) * (rho ** 2)) / ((1. - beta) * (1. - rho ** 2)))
 
     # initialize underlying values
-    Ft = np.zeros((T, N))
+    Ft = np.zeros((T-1, N))
     Ft = np.insert(Ft, 0, F0 * np.ones(N), axis=0)
     
-    # absorption probabilities Formula 2.10
-    vfunc_absorption_probability = np.vectorize(lambda x: AbsorptionConditionalProb(F0, beta, x))
-    pr_zero = vfunc_absorption_probability(v_t)
     
+   
     for n in range(0, N):
         for ti in range(1, T):
+            
             if Ft[ti - 1, n] == 0.:
                 Ft[ti, n] = 0.
                 continue
-            elif pr_zero[ti - 1, n] > U[ti - 1, n]:
+            a = (1. / v_t[ti - 1, n]) * (((Ft[ti - 1, n] ** (1. - beta)) / (1. - beta) + (rho / alpha) * (sigma_t[ti, n] - sigma_t[ti - 1, n])) ** 2)
+            # absorption probabilities Formula 2.10
+            pr_zero = AbsorptionConditionalProb(a, b)
+            if pr_zero > U[ti - 1, n]:
                 Ft[ti, n] = 0.
                 continue
             
-            m, psi = andersen_QE(a[ti - 1, n], b)
+            m, psi = andersen_QE(a, b)
 
             if m >= 0 and psi <= psi_threshold:
                 # Formula 3.9: simulation for high values
@@ -237,71 +221,12 @@ def sabrMC(F0=0.04, sigma0=0.07, alpha=0.5, beta=0.25, rho=0.4, psi_threshold=2.
                 
             elif psi > psi_threshold or (m < 0 and psi <= psi_threshold):
                 # direct inversion for small values
-                c_star = root_chi2(a[ti - 1, n], b, U[ti - 1, n])
+                c_star = root_chi2(a, b, U[ti - 1, n])
                 Ft[ti, n] = np.power(c_star * ((1. - beta) ** 2) * v_t[ti - 1, n], 1. / (2. - 2. * beta))
 
             # print Ft[ti, n]
         
     return Ft
-   
-def sabrMC_iter(F0=0.04, sigma0=0.3, alpha=0.4, beta=0.4, rho=0.4, psi_threshold=2., n_years=1.0, T=252, N=2000, trapezoidal_integrated_variance=False):
-    print 'F0', F0, 'sigma0', sigma0 , 'alpha', alpha, 'beta', beta, 'rho', rho
-    Fts = np.zeros((T, N))
-    dt = 1. / (T)
-    b = 2. - ((1. - 2. * beta - (1. - beta) * (rho ** 2)) / ((1. - beta) * (1. - rho ** 2)))
-    for n in range(N):
-        sigma_t = sigma0
-        sigma_s = sigma0
-        Fs = F0
-        for t in range(T):
-            dW = np.random.normal(0.0, math.sqrt(dt))
-            sigma_t = sigma_s * math.exp(alpha * dW - 0.5 * (alpha ** 2) * dt)
-            
-            v_t = 0.0
-            if trapezoidal_integrated_variance:
-                v_t = (1. - rho ** 2) * 0.5 * dt * (sigma_s ** 2 + sigma_t ** 2)
-            else:
-                dW_2, dW_3, dW_4 = np.power(dW, 2), np.power(dW, 3), np.power(dW, 4)
-                m1 = alpha * dW
-                m2 = (1. / 3) * (alpha ** 2) * (2 * dW_2 - dt / 2)
-                m3 = (1. / 3) * (alpha ** 3) * (dW_3 - dW * dt) 
-                m4 = (1. / 5) * (alpha ** 4) * ((2. / 3) * dW_4 - (3. / 2) * dW_2 * dt + 2 * (dt ** 2))
-                m = (sigma_s ** 2) * dt * (1. + m1 + m2 + m3 + m4)
-                v = (1. / 3) * (sigma0 ** 4) * (alpha ** 2) * dt ** 3
-             
-                mu = math.log(m) - (1. / 2) * math.log(1. + v / m ** 2)
-                sigma2 = math.log(1. + v / (m ** 2))
-                A_t = np.exp(math.sqrt(sigma2) * norm.ppf(np.random.uniform()) + mu)
-                v_t = (1. - rho ** 2) * A_t
-             
-            
-            a = (1. / v_t) * (((Fs ** (1. - beta)) / (1. - beta) + (rho / alpha) * (sigma_t - sigma_s)) ** 2)
-#             
-            
-            u = np.random.uniform()
-            pr_zero = AbsorptionConditionalProb(Fs, beta, v_t)
-            if Fs == 0.0:
-                break;
-            elif u < pr_zero:
-                break;
-#             
-            m, psi = andersen_QE(a, b)
-        
-            if m >= 0 and psi <= psi_threshold:
-                z = np.random.normal(0., 1.)
-                e2 = (2. / psi) - 1. + math.sqrt(2. / psi) * math.sqrt((2. / psi) - 1.)
-                d = m / (1. + e2)
-                Ft = np.power(((1. - beta) ** 2) * v_t * d * ((math.sqrt(e2) + z) ** 2), 1. / (2.* (1. - beta))) 
-                
-            elif psi > psi_threshold or (m < 0 and psi <= psi_threshold):
-                u = np.random.uniform()
-                c_star = root_chi2(a, b, u)
-                Ft = np.power(c_star * ((1. - beta) ** 2) * v_t, 1. / (2. - 2. * beta))
-            
-            Fts[t, n] = Ft
-            sigma_s = sigma_t
-            Fs = Ft
-    return Fts
 
 if __name__ == '__main__':
     sabrMC()
