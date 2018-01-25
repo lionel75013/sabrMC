@@ -86,12 +86,12 @@ def simulate_Wt(dW, x0, n, dt, m):
     Wt[1:, :] = dW
     return Wt
 
-def simulate_sigma(Wt, sigma0, alpha , t, dt, T, N):
+def simulate_sigma(Wt, sigma0, alpha , t):
     ''' 'Exact' simulation of GBM with mu=0 '''
     return sigma0 * np.exp(alpha * Wt - 0.5 * (alpha ** 2) * t)
 
 ######################## integrated variance ####################################
-def integrated_variance_small_disturbances(N, rho, alpha, sigma0, t, dW2, U):
+def integrated_variance_small_disturbances(N, rho, alpha, sigma0, dt, dW2, U):
     ''' Small disturbance expansion Chen B. & al (2011).'''
     # add 0 first row
     dW = np.insert(dW2, 0, np.zeros(N), axis=0)
@@ -99,18 +99,36 @@ def integrated_variance_small_disturbances(N, rho, alpha, sigma0, t, dW2, U):
     dW_2, dW_3, dW_4 = np.power(dW, 2), np.power(dW, 3), np.power(dW, 4)
     m = 1.
     m += alpha * dW
-    m += (1. / 3) * (alpha ** 2) * (2 * dW_2 - t / 2)
-    m += (1. / 3) * (alpha ** 3) * (dW_3 - dW * t) 
-    m += (1. / 5) * (alpha ** 4) * ((2. / 3) * dW_4 - (3. / 2) * dW_2 * t + 2 * np.power(t, 2))
-    m = (sigma0 ** 2) * t * m
+    m += (1. / 3) * (alpha ** 2) * (2 * dW_2 - dt / 2)
+    m += (1. / 3) * (alpha ** 3) * (dW_3 - dW * dt) 
+    m += (1. / 5) * (alpha ** 4) * ((2. / 3) * dW_4 - (3. / 2) * dW_2 * dt + 2 * np.power(dt, 2))
+    m = (sigma0 ** 2) * dt * m
     
-    v = (1. / 3) * (sigma0 ** 4) * (alpha ** 2) * np.power(t, 3)
+    v = (1. / 3) * (sigma0 ** 4) * (alpha ** 2) * np.power(dt, 3)
     # step 3 & 4 of 3.6 discretization scheme
     mu = np.log(m) - (1. / 2) * np.log(1. + v / m ** 2)
     sigma2 = np.log(1. + v / (m ** 2))
     A_t = np.exp(np.sqrt(sigma2) * norm.ppf(U) + mu)
     v_t = (1. - rho ** 2) * A_t
     return v_t
+
+
+def integrated_variance_trapezoidal(rho, sigma_t, dt):
+    sigma2_ti = sigma_t ** 2
+    sigma2_ti_1 = shift(sigma_t, -1, fill_value=0.) ** 2
+    A_t = ((dt / 2) * (sigma2_ti + sigma2_ti_1))
+    v_t = (1. - rho ** 2) * A_t
+    return v_t
+
+
+def shift(arr, num, fill_value=np.nan):
+    arr = np.roll(arr, num)
+    if num < 0:
+        arr[num:] = fill_value
+    elif num > 0:
+        arr[:num] = fill_value
+    return arr
+
 
 def andersen_QE(ai, b):
     ''' Test for Andersen L. (2008) Quadratic exponential Scheme (Q.E.) '''
@@ -121,7 +139,7 @@ def andersen_QE(ai, b):
     psi = s2 / m ** 2 
     return m, psi
 
-def sabrMC(F0=0.04, sigma0=0.07, alpha=0.5, beta=0.25, rho=0.4, psi_threshold=2., n_years=1.0, T=252, N=1000):
+def sabrMC(F0=0.04, sigma0=0.07, alpha=0.5, beta=0.25, rho=0.4, psi_threshold=2., n_years=1.0, T=252, N=1000, trapezoidal_integrated_variance=False):
     """Simulates a SABR process with absoption at 0 with the given parameters.
        The Sigma, Alpha, Beta, Rho (SABR) model originates from Hagan S. et al. (2002).
        The simulation algorithm is taken from Chen B., Osterlee C. W. and van der Weide H. (2011)
@@ -146,6 +164,8 @@ def sabrMC(F0=0.04, sigma0=0.07, alpha=0.5, beta=0.25, rho=0.4, psi_threshold=2.
        T: Number of steps
        
        N: Number of simulated paths
+       
+       trapezoidal_integrated_variance: use trapezoidal integrated variance instead of small disturbances
 
        Returns
        -------
@@ -175,14 +195,20 @@ def sabrMC(F0=0.04, sigma0=0.07, alpha=0.5, beta=0.25, rho=0.4, psi_threshold=2.
     U = np.random.uniform(size=(T, N))
     Z = np.random.normal(0.0, sqrt(dt), (T, N))
     W2t = simulate_Wt(dW2, np.zeros(N), T, dt, N)
-    sigma_t = simulate_sigma(W2t, sigma0, alpha, t, dt, T, N)
+    
+    # vol process
+    sigma_t = simulate_sigma(W2t, sigma0, alpha, t)
+    sigma_tp1 = shift(sigma_t, -1, fill_value=0.)
     
     # integrated variance
-    v_t = integrated_variance_small_disturbances(N, rho, alpha, sigma_t, dt, dW2, U1)
+    if trapezoidal_integrated_variance:
+        v_t = integrated_variance_trapezoidal(rho, sigma_t, dt)
+    else:
+        v_t = integrated_variance_small_disturbances(N, rho, alpha, sigma_t, dt, dW2, U1)
   
     # Direct inversion scheme
-    a = (1. / v_t) * (np.power(F0, 1. - beta) / (1. - beta) + (rho / alpha) * (sigma_t - sigma0)) ** 2
-    b = 2. - ((1. - 2. * beta - (1. - beta) * rho ** 2) / ((1. - beta) * (1. - rho ** 2)))
+    a = (1. / v_t) * (((np.power(F0, 1. - beta) / (1. - beta)) + (rho / alpha) * (sigma_tp1 - sigma_t)) ** 2)
+    b = 2. - ((1. - 2. * beta - (1. - beta) * (rho ** 2)) / ((1. - beta) * (1. - rho ** 2)))
 
     # initialize underlying values
     Ft = np.zeros((T, N))
@@ -193,28 +219,28 @@ def sabrMC(F0=0.04, sigma0=0.07, alpha=0.5, beta=0.25, rho=0.4, psi_threshold=2.
     pr_zero = vfunc_absorption_probability(v_t)
     
     for n in range(0, N):
-        for ti in range(1, T + 1):
+        for ti in range(1, T):
             if Ft[ti - 1, n] == 0.:
                 Ft[ti, n] = 0.
                 continue
-            elif pr_zero[ti, n] > U[ti - 1, n]:
+            elif pr_zero[ti - 1, n] > U[ti - 1, n]:
                 Ft[ti, n] = 0.
                 continue
             
-            m, psi = andersen_QE(a[ti, n], b)
+            m, psi = andersen_QE(a[ti - 1, n], b)
 
             if m >= 0 and psi <= psi_threshold:
                 # Formula 3.9: simulation for high values
                 e2 = (2. / psi) - 1. + sqrt(2. / psi) * sqrt((2. / psi) - 1.)
                 d = m / (1. + e2)
-                Ft[ti, n] = np.power(((1. - beta) ** 2) * v_t[ti, n] * d * ((sqrt(e2) + Z[ti - 1, n]) ** 2), 1. / (2.* (1. - beta))) 
+                Ft[ti, n] = np.power(((1. - beta) ** 2) * v_t[ti - 1, n] * d * ((sqrt(e2) + Z[ti - 1, n]) ** 2), 1. / (2.* (1. - beta))) 
                 
             elif psi > psi_threshold or (m < 0 and psi <= psi_threshold):
-                # direct inversion for low values
-                c_star = root_chi2(a[ti, n], b, U[ti - 1, n])
-                Ft[ti, n] = np.power(c_star * ((1. - beta) ** 2) * v_t[ti, n], 1. / (2. - 2. * beta))
+                # direct inversion for small values
+                c_star = root_chi2(a[ti - 1, n], b, U[ti - 1, n])
+                Ft[ti, n] = np.power(c_star * ((1. - beta) ** 2) * v_t[ti - 1, n], 1. / (2. - 2. * beta))
 
-            #print Ft[ti, n]
+            # print Ft[ti, n]
         
     return Ft
 
