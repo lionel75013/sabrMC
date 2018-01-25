@@ -244,7 +244,6 @@ def sabrMC(F0=0.04, sigma0=0.07, alpha=0.5, beta=0.25, rho=0.4, psi_threshold=2.
         
     return Ft
    
-   
 def sabrMC_iter(F0=0.04, sigma0=0.3, alpha=0.4, beta=0.4, rho=0.4, psi_threshold=2., n_years=1.0, T=252, N=2000, trapezoidal_integrated_variance=False):
     print 'F0', F0, 'sigma0', sigma0 , 'alpha', alpha, 'beta', beta, 'rho', rho
     Fts = np.zeros((T, N))
@@ -258,20 +257,26 @@ def sabrMC_iter(F0=0.04, sigma0=0.3, alpha=0.4, beta=0.4, rho=0.4, psi_threshold
             dW = np.random.normal(0.0, sqrt(dt))
             sigma_t = sigma_s * math.exp(alpha * dW - 0.5 * (alpha ** 2) * dt)
             
-            dW_2, dW_3, dW_4 = np.power(dW, 2), np.power(dW, 3), np.power(dW, 4)
-            m1 = alpha * dW
-            m2 = (1. / 3) * (alpha ** 2) * (2 * dW_2 - dt / 2)
-            m3 = (1. / 3) * (alpha ** 3) * (dW_3 - dW * dt) 
-            m4 = (1. / 5) * (alpha ** 4) * ((2. / 3) * dW_4 - (3. / 2) * dW_2 * dt + 2 * (dt ** 2))
-            m = (sigma_s ** 2) * dt * (1. + m1 + m2 + m3 + m4)
-            v = (1. / 3) * (sigma0 ** 4) * (alpha ** 2) * dt ** 3
-            
-            mu = math.log(m) - (1. / 2) * math.log(1. + v / m ** 2)
-            sigma2 = math.log(1. + v / (m ** 2))
-            A_t = np.exp(math.sqrt(sigma2) * norm.ppf(np.random.uniform()) + mu)
-            v_t = (1. - rho ** 2) * A_t
+            v_t = 0.0
+            if trapezoidal_integrated_variance:
+                v_t = (1. - rho ** 2) * 0.5 * dt * (sigma_s ** 2 + sigma_t ** 2)
+            else:
+                dW_2, dW_3, dW_4 = np.power(dW, 2), np.power(dW, 3), np.power(dW, 4)
+                m1 = alpha * dW
+                m2 = (1. / 3) * (alpha ** 2) * (2 * dW_2 - dt / 2)
+                m3 = (1. / 3) * (alpha ** 3) * (dW_3 - dW * dt) 
+                m4 = (1. / 5) * (alpha ** 4) * ((2. / 3) * dW_4 - (3. / 2) * dW_2 * dt + 2 * (dt ** 2))
+                m = (sigma_s ** 2) * dt * (1. + m1 + m2 + m3 + m4)
+                v = (1. / 3) * (sigma0 ** 4) * (alpha ** 2) * dt ** 3
+             
+                mu = math.log(m) - (1. / 2) * math.log(1. + v / m ** 2)
+                sigma2 = math.log(1. + v / (m ** 2))
+                A_t = np.exp(math.sqrt(sigma2) * norm.ppf(np.random.uniform()) + mu)
+                v_t = (1. - rho ** 2) * A_t
+             
             
             a = (1. / v_t) * (((Fs ** (1. - beta)) / (1. - beta) + (rho / alpha) * (sigma_t - sigma_s)) ** 2)
+#             
             
             u = np.random.uniform()
             pr_zero = AbsorptionConditionalProb(Fs, beta, v_t)
@@ -279,6 +284,7 @@ def sabrMC_iter(F0=0.04, sigma0=0.3, alpha=0.4, beta=0.4, rho=0.4, psi_threshold
                 break;
             elif u < pr_zero:
                 break;
+#             
             m, psi = andersen_QE(a, b)
         
             if m >= 0 and psi <= psi_threshold:
@@ -290,11 +296,11 @@ def sabrMC_iter(F0=0.04, sigma0=0.3, alpha=0.4, beta=0.4, rho=0.4, psi_threshold
             elif psi > psi_threshold or (m < 0 and psi <= psi_threshold):
                 u = np.random.uniform()
                 c_star = root_chi2(a, b, u)
-                Ft= np.power(c_star * ((1. - beta) ** 2) * v_t, 1. / (2. - 2. * beta))
+                Ft = np.power(c_star * ((1. - beta) ** 2) * v_t, 1. / (2. - 2. * beta))
             
-            Fts[t,n]=Ft
-            sigma_s=sigma_t
-            Fs=Ft
+            Fts[t, n] = Ft
+            sigma_s = sigma_t
+            Fs = Ft
     return Fts
 
 if __name__ == '__main__':
