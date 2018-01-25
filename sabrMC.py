@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from math import sqrt
+import math
 import numpy as np
 from scipy.stats import norm
 from scipy.special._ufuncs import gammainc
@@ -190,7 +190,7 @@ def sabrMC(F0=0.04, sigma0=0.07, alpha=0.5, beta=0.25, rho=0.4, psi_threshold=2.
     
     
     # Distributions samples
-    dW2 = np.random.normal(0.0, sqrt(dt), (T, N))
+    dW2 = np.random.normal(0.0, math.sqrt(dt), (T, N))
     U1 = np.random.uniform(size=(T + 1, N))
     U = np.random.uniform(size=(T, N))
     Z = np.random.normal(0.0, 1., (T, N))
@@ -231,9 +231,9 @@ def sabrMC(F0=0.04, sigma0=0.07, alpha=0.5, beta=0.25, rho=0.4, psi_threshold=2.
 
             if m >= 0 and psi <= psi_threshold:
                 # Formula 3.9: simulation for high values
-                e2 = (2. / psi) - 1. + sqrt(2. / psi) * sqrt((2. / psi) - 1.)
+                e2 = (2. / psi) - 1. + math.sqrt(2. / psi) * math.sqrt((2. / psi) - 1.)
                 d = m / (1. + e2)
-                Ft[ti, n] = np.power(((1. - beta) ** 2) * v_t[ti - 1, n] * d * ((sqrt(e2) + Z[ti - 1, n]) ** 2), 1. / (2.* (1. - beta))) 
+                Ft[ti, n] = np.power(((1. - beta) ** 2) * v_t[ti - 1, n] * d * ((math.sqrt(e2) + Z[ti - 1, n]) ** 2), 1. / (2.* (1. - beta))) 
                 
             elif psi > psi_threshold or (m < 0 and psi <= psi_threshold):
                 # direct inversion for small values
@@ -254,7 +254,7 @@ def sabrMC_iter(F0=0.04, sigma0=0.3, alpha=0.4, beta=0.4, rho=0.4, psi_threshold
         sigma_s = sigma0
         Fs = F0
         for t in range(T):
-            dW = np.random.normal(0.0, sqrt(dt))
+            dW = np.random.normal(0.0, math.sqrt(dt))
             sigma_t = sigma_s * math.exp(alpha * dW - 0.5 * (alpha ** 2) * dt)
             
             v_t = 0.0
@@ -289,9 +289,9 @@ def sabrMC_iter(F0=0.04, sigma0=0.3, alpha=0.4, beta=0.4, rho=0.4, psi_threshold
         
             if m >= 0 and psi <= psi_threshold:
                 z = np.random.normal(0., 1.)
-                e2 = (2. / psi) - 1. + sqrt(2. / psi) * sqrt((2. / psi) - 1.)
+                e2 = (2. / psi) - 1. + math.sqrt(2. / psi) * math.sqrt((2. / psi) - 1.)
                 d = m / (1. + e2)
-                Ft = np.power(((1. - beta) ** 2) * v_t * d * ((sqrt(e2) + z) ** 2), 1. / (2.* (1. - beta))) 
+                Ft = np.power(((1. - beta) ** 2) * v_t * d * ((math.sqrt(e2) + z) ** 2), 1. / (2.* (1. - beta))) 
                 
             elif psi > psi_threshold or (m < 0 and psi <= psi_threshold):
                 u = np.random.uniform()
