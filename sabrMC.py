@@ -193,7 +193,7 @@ def sabrMC(F0=0.04, sigma0=0.07, alpha=0.5, beta=0.25, rho=0.4, psi_threshold=2.
     dW2 = np.random.normal(0.0, sqrt(dt), (T, N))
     U1 = np.random.uniform(size=(T + 1, N))
     U = np.random.uniform(size=(T, N))
-    Z = np.random.normal(0.0, sqrt(dt), (T, N))
+    Z = np.random.normal(0.0, 1., (T, N))
     W2t = simulate_Wt(dW2, np.zeros(N), T, dt, N)
     
     # vol process
