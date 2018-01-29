@@ -184,7 +184,8 @@ def sabrMC(F0=0.04, sigma0=0.07, alpha=0.5, beta=0.25, rho=0.4, psi_threshold=2.
     # vol process
     sigma_t = simulate_sigma(W2t, sigma0, alpha, t)
     
-    # integrated variance
+    # integrated variance- values are integrals between ti-1 and ti 
+    # not integrals over the whole interval [0,ti] distribution is approx. log normal
     if trapezoidal_integrated_variance:
         v_t = integrated_variance_trapezoidal(rho, sigma_t, dt)
     else:
