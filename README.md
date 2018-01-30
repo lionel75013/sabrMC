@@ -11,7 +11,7 @@ are biased for the CEV process, and monte carlo simulations will exhibit signifi
 
 Chen & al. (2011) extend the methodologies of Willard (1997), Broadie & Kaya (2006), Andersen (2008)and  Islah (2009) to provide an unbiased
 scheme to simulate and discretize the SABR process. This method is a mix of  multiple techniques: a direct inversion scheme of the non central
- chi-squared distribution, the QE method of Andersen and small disturbance expansion.   
+ chi-squared distribution, the QE method of Andersen and small disturbance expansion. More information on the theory and results can be found in the article: [Monte Carlo Simulation of the SABR process](http://underaudit.com/2018/01/30/monte-carlo-simulation-of-the-sabr-process/).
 
 The implementation I have provided, tries to vectorize the problem as much as possible, but some amount of iteration is required when dealing
 with the conditional application of the QE scheme or direct inversion. It also does not implement the so-called "Enhanced direct inversion procedure"
