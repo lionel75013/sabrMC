@@ -16,7 +16,7 @@ scheme to simulate and discretize the SABR process. This method is a mix of  mul
 The implementation I have provided, tries to vectorize the problem as much as possible, but some amount of iteration is required when dealing
 with the conditional application of the QE scheme or direct inversion. It also does not implement the so-called "Enhanced direct inversion procedure"
 of formula (3.12). Nor does the direct inversion scheme use a newton type root finder.  I leave this for a later time.
-![alt text](https://github.com/lionel75013/sabrMC/blob/master/sabrMC.png "Simulation")
+
 
 
 Implementing the details of a research paper is hard and subject to interpretation error. As such, this code is for educational purpose only, and it might still undergo some changes/corrections in the future.
